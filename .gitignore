@@ -1,0 +1,6 @@
+# Visual Studio trash
+.vs/*
+
+# Build trash
+W40k_fixes/Debug/*
+W40k_fixes/Release/*
