@@ -9,6 +9,9 @@ W40kHacks::W40kHacks()
 
 	//IniReader
 	CIniReader iniReader("");
+	this->isBorderless = iniReader.ReadBoolean("MAIN", "Borderless", 0);
+	this->PosX = iniReader.ReadInteger("MAIN", "BorderlessPositionX", 0);
+	this->PosY = iniReader.ReadInteger("MAIN", "BorderlessPositionY", 0);
 	float FOV = iniReader.ReadFloat("MAIN", "FOV", 90);
 	if (FOV < 60)
 		this->DesiredFOV = 60;

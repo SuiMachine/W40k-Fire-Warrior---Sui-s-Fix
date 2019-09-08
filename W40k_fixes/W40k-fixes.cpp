@@ -7,18 +7,30 @@
 
 W40kHacks* hacks;
 HWND windowInstance;
+bool borderless;
+int PosX;
+int PosY;
+
 
 static BOOL(__stdcall* TrueSetWindowPos)(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags) = SetWindowPos;
 BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags)
 {
-	auto result = TrueSetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
+	BOOL result = TrueSetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 	if (hWnd == windowInstance)
 	{
-		RECT* rect = new RECT();
-		GetClientRect(hWnd, rect);	//Inner window - no bars etc.
-		hacks->Update(rect->right - rect->left, rect->bottom - rect->top);
-		delete rect;
+		RECT rect;
+		GetClientRect(hWnd, &rect);	//Inner window - no bars etc.
+		auto width = rect.right - rect.left;
+		auto height = rect.bottom - rect.top;
+		hacks->Update(width, height);
+		if (borderless && width > 640 && height > 480)
+		{
+			SetWindowLong(hWnd, GWL_STYLE, WS_VISIBLE | WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN);
+			result = TrueSetWindowPos(hWnd, hWndInsertAfter, PosX, PosY, width, height, uFlags);
+		}
 	}
+	else
+
 
 	return result;
 }
@@ -26,10 +38,13 @@ BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y,
 static HWND(__stdcall* TrueCreateWindowEx)(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam) = CreateWindowEx;
 HWND __stdcall DetourCreateWindowEx(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	auto result = TrueCreateWindowEx(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	auto comp = strstr(lpWindowName, "Fire Warrior");
-	if (comp > NULL)
+
+	auto result = TrueCreateWindowEx(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+
+	if (comp != NULL)
 		windowInstance = result;	//Store handle of game's window
+
 
 	return result;
 }
@@ -50,6 +65,9 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 		if (std::strstr((const char*)&exeName, "firewarrior.exe"))
 		{
 			hacks = new W40kHacks();
+			borderless = hacks->isBorderless;
+			PosX = hacks->PosX;
+			PosY = hacks->PosY;
 		}
 
 		DetourTransactionBegin();
