@@ -8,8 +8,10 @@
 W40kHacks* hacks;
 HWND windowInstance;
 bool borderless;
-int PosX;
-int PosY;
+int BorderlessPosX;
+int BorderlessPosY;
+int BorderlessWidth = 0;
+int BorderlessHeight = 0;
 
 
 static BOOL(__stdcall* TrueSetWindowPos)(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags) = SetWindowPos;
@@ -25,8 +27,25 @@ BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y,
 		hacks->Update(width, height);
 		if (borderless && width > 640 && height > 480)
 		{
+			bool isAutomaticRes = BorderlessWidth == 0 || BorderlessHeight == 0;
 			SetWindowLong(hWnd, GWL_STYLE, WS_VISIBLE | WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN);
-			result = TrueSetWindowPos(hWnd, hWndInsertAfter, PosX, PosY, width, height, uFlags);
+			if (isAutomaticRes)
+			{
+				RECT mainMonitorRes;
+				HWND hDesktop = GetDesktopWindow();
+				GetWindowRect(hDesktop, &mainMonitorRes);
+				if (mainMonitorRes.right - mainMonitorRes.left == width)
+				{
+					width = mainMonitorRes.right - mainMonitorRes.left;
+					height = mainMonitorRes.bottom - mainMonitorRes.top;
+				}
+			}
+			else
+			{
+				width = BorderlessWidth;
+				height = BorderlessHeight;
+			}
+			result = TrueSetWindowPos(hWnd, hWndInsertAfter, BorderlessPosX, BorderlessPosY, width, height, uFlags);
 		}
 	}
 	else
@@ -64,10 +83,13 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 		
 		if (std::strstr((const char*)&exeName, "firewarrior.exe"))
 		{
+			CIniReader iniReader("");
 			hacks = new W40kHacks();
-			borderless = hacks->isBorderless;
-			PosX = hacks->PosX;
-			PosY = hacks->PosY;
+			borderless = iniReader.ReadBoolean("MAIN", "Borderless", 0);
+			BorderlessPosX = iniReader.ReadInteger("MAIN", "BorderlessPositionX", 0);
+			BorderlessPosY = iniReader.ReadInteger("MAIN", "BorderlessPositionY", 0);
+			BorderlessWidth = iniReader.ReadInteger("MAIN", "BorderlessWidth", 0);
+			BorderlessHeight = iniReader.ReadInteger("MAIN", "BorderlessHeight", 0);
 		}
 
 		DetourTransactionBegin();
