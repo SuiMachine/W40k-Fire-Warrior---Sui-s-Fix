@@ -32,6 +32,9 @@
     <ClInclude Include="WidescreenHack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="FileLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="W40k-fixes.cpp">

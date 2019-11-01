@@ -3,6 +3,7 @@
 #include "W40kHacks.h"
 #include "HookFunctions.h"
 #include <string>
+#include "FileLogger.h"
 
 
 W40kHacks* hacks;
@@ -17,9 +18,13 @@ int BorderlessHeight = 0;
 static BOOL(__stdcall* TrueSetWindowPos)(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags) = SetWindowPos;
 BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags)
 {
+	easyLog << "Setting window position detour";
+
 	BOOL result = TrueSetWindowPos(hWnd, hWndInsertAfter, X, Y, cx, cy, uFlags);
 	if (hWnd == windowInstance)
 	{
+		easyLog << "Utilizing detour for set position";
+
 		RECT rect;
 		GetClientRect(hWnd, &rect);	//Inner window - no bars etc.
 		auto width = rect.right - rect.left;
@@ -48,7 +53,11 @@ BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y,
 			result = TrueSetWindowPos(hWnd, hWndInsertAfter, BorderlessPosX, BorderlessPosY, width, height, uFlags);
 		}
 	}
+
+	if(result)
+		easyLog << "Setting window position detour - OK";
 	else
+		easyLog << ige::FileLogger::e_logType::LOG_ERROR << "Setting window position failed!";
 
 
 	return result;
@@ -57,12 +66,17 @@ BOOL __stdcall DetourSetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y,
 static HWND(__stdcall* TrueCreateWindowEx)(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam) = CreateWindowEx;
 HWND __stdcall DetourCreateWindowEx(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
+	easyLog << "Checking name of new window";
+
 	auto comp = strstr(lpWindowName, "Fire Warrior");
 
 	auto result = TrueCreateWindowEx(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 
 	if (comp != NULL)
+	{
+		easyLog << "Storing handle of Fire Warrior window";
 		windowInstance = result;	//Store handle of game's window
+	}
 
 
 	return result;
@@ -76,6 +90,8 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 		HMODULE baseModule = GetModuleHandle(NULL);
 		char baseModuleName[MAX_PATH];
 		GetModuleFileName(baseModule, baseModuleName, sizeof(baseModuleName));
+		easyLog << "Obtained main module" << baseModuleName;
+
 		int indexOfLastPathNode = StrEndsWith(baseModuleName, sizeof(baseModuleName), '\\') + 1;
 		char exeName[MAX_PATH];
 		strcpy_s(exeName, baseModuleName + indexOfLastPathNode);
@@ -83,6 +99,7 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 		
 		if (std::strstr((const char*)&exeName, "firewarrior.exe"))
 		{
+			easyLog << "Module is correct, loadings hacks";
 			CIniReader iniReader("");
 			hacks = new W40kHacks();
 			borderless = iniReader.ReadBoolean("MAIN", "Borderless", 0);
@@ -91,12 +108,21 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID)
 			BorderlessWidth = iniReader.ReadInteger("MAIN", "BorderlessWidth", 0);
 			BorderlessHeight = iniReader.ReadInteger("MAIN", "BorderlessHeight", 0);
 		}
+		else
+		{
+			easyLog << "Wrong module! W40kHacks was not created";
+		}
 
+		easyLog << "Begining detour transaction";
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
+		easyLog << "Setting up detour for SetWindowPos";
 		DetourAttach(&(PVOID&)TrueSetWindowPos, DetourSetWindowPos);
+		easyLog << "Setting up detour for CreateWindowEx";
 		DetourAttach(&(PVOID&)TrueCreateWindowEx, DetourCreateWindowEx);
+		easyLog << "Committing detour....";
 		DetourTransactionCommit();
+		easyLog << "Seems like everything is fine...";
 
 	}
 	else if (reason == DLL_PROCESS_DETACH)

@@ -94,6 +94,7 @@
     <ClCompile Include="W40kHacks.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FileLogger.h" />
     <ClInclude Include="WidescreenHack.h" />
     <ClInclude Include="HookFunctions.h" />
     <ClInclude Include="VersionInfo.h" />
